@@ -1,3 +1,9 @@
+# .env ファイルが存在する場合のみ include
+ifneq ("$(wildcard .env)", "")
+  include .env
+  export
+endif
+
 # コマンドリスト
 
 #####################################################
@@ -11,27 +17,104 @@
 #### git clone後に初期起動するときのコマンド
 first-up-build:
 	cp .env.example .env
-	docker compose up -d
 
 #### サービスのビルドを実行します。
 build:
-	docker compose build
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+else
+	@echo "Using ENV=${ENV}"
+	docker compose --profile ${ENV} build
+endif
+
 
 #### サービスのビルドからコンテナ作成、起動までをバックグランドで行います。
 build-up:
-	docker compose up -d --build
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+endif
+
+	@echo "Using ENV=${ENV}"
+
+ifeq ($(ENV),local)
+	@make create-db-secrets
+	docker compose --profile ${ENV} up -d --build
+	docker compose exec mysql bash -c "cp /run/secrets/db_secret_file /tmp/db_secret_file"
+	docker compose exec mysql bash -c "chmod 600 /tmp/db_secret_file"
+else ifeq ($(ENV),dev)
+	docker compose --profile ${ENV} up -d --build
+else
+	@echo "Error: Unsupported ENV value '${ENV}'"
+	@exit 1
+endif
+
 
 #### コンテナを作成して、起動します。オプションで-dをつけることでバックグラウンドで実行することができます。
 up:
-	docker compose up -d
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+endif
+
+	@echo "Using ENV=${ENV}"
+
+ifeq ($(ENV),local)
+	@make create-db-secrets
+	docker compose --profile ${ENV} up -d
+	docker compose exec mysql bash -c "cp /run/secrets/db_secret_file /tmp/db_secret_file"
+	docker compose exec mysql bash -c "chmod 600 /tmp/db_secret_file"
+else ifeq ($(ENV),dev)
+	docker compose --profile ${ENV} up -d
+else
+	@echo "Error: Unsupported ENV value '${ENV}'"
+	@exit 1
+endif
+
 
 #### 構築されたサービスを参考にそのコンテナを作ります。
 create:
-	docker compose create
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+endif
+
+	@echo "Using ENV=${ENV}"
+
+ifeq ($(ENV),local)
+	@make create-db-secrets
+	docker compose --profile ${ENV} create
+	docker compose exec mysql bash -c "cp /run/secrets/db_secret_file /tmp/db_secret_file"
+	docker compose exec mysql bash -c "chmod 600 /tmp/db_secret_file"
+else ifeq ($(ENV),dev)
+	docker compose --profile ${ENV} create
+else
+	@echo "Error: Unsupported ENV value '${ENV}'"
+	@exit 1
+endif
+
 
 #### コンテナを再起動します。
 restart:
-	docker compose restart
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+endif
+
+	@echo "Using ENV=${ENV}"
+
+ifeq ($(ENV),local)
+	@make create-db-secrets
+	docker compose --profile ${ENV} restart
+	docker compose exec mysql bash -c "cp /run/secrets/db_secret_file /tmp/db_secret_file"
+	docker compose exec mysql bash -c "chmod 600 /tmp/db_secret_file"
+else ifeq ($(ENV),dev)
+	docker compose --profile ${ENV} restart
+else
+	@echo "Error: Unsupported ENV value '${ENV}'"
+	@exit 1
+endif
 
 #----------------------------------------------------
 ### コンテナ停止・削除系
@@ -39,11 +122,23 @@ restart:
 
 #### compose.ymlに書かれているサービスを参考にコンテナを停止し、そのコンテナとネットワークを削除します。
 down:
-	docker compose down
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+else
+	@echo "Using ENV=${ENV}"
+	docker compose --profile ${ENV} down
+endif
 
 #### compose.ymlに書かれているサービスを参考に停止中のコンテナを削除します。
 rm:
-	docker compose rm
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+else
+	@echo "Using ENV=${ENV}"
+	docker compose --profile ${ENV} rm
+endif
 
 #### compose.ymlに書かれているサービスを参考にコンテナ、イメージ、ボリューム、ネットワークそして未定義コンテナ、全てを一括消去するコマンド
 down-rmi:
@@ -84,11 +179,23 @@ unpause:
 
 #### サービスのログを出力します。
 logs:
-	docker compose logs
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+else
+	@echo "Using ENV=${ENV}"
+	docker compose --profile ${ENV} logs
+endif
 
 #### サービスのログをリアルタイムに出力します。
 logs-f:
-	docker compose logs -f
+ifeq ($(ENV),)
+	@echo "Error: Please specify a valid environment with ENV=<environment>"
+	@exit 1
+else
+	@echo "Using ENV=${ENV}"
+	docker compose --profile ${ENV} logs -f
+endif
 
 #### コンテナの一覧を表示します。
 ps:
@@ -134,3 +241,29 @@ pull:
 #----------------------------------------------------
 ### container
 #----------------------------------------------------
+
+# SchemaSpy
+## SchemaSpyコンテナログイン
+schemaspy-login:
+	docker compose exec schemaspy bash
+
+## SchemaSpy実行
+schemaspy-execution:
+	docker compose exec schemaspy bash -c "java -jar /schemaspy.jar -configFile /schemaspy.properties"
+
+# MySQL
+## MySQLコンテナにログイン
+mysql-login:
+	docker compose exec mysql bash
+
+## MySQLにログインする
+db-connection:
+	docker compose exec mysql bash -c "mysql --defaults-extra-file=/tmp/db_secret_file"
+
+# Database接続のシークレットファイルを作成
+create-db-secrets:
+	echo "[client]" > db_secret.txt
+	echo "host=$(MYSQL_HOSTS)" >> db_secret.txt
+	echo "port=$(MYSQL_PORTS)" >> db_secret.txt
+	echo "user=$(MYSQL_USER)" >> db_secret.txt
+	echo "password=$(MYSQL_PASSWORD)" >> db_secret.txt
