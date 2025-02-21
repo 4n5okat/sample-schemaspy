@@ -1,1 +1,56 @@
 services:
+  schemaspy:
+    profiles: [ "local" ]
+    container_name: schemaspy
+    hostname: schemaspy-${CONTAINER_NAME_SUFFIX}
+    build:
+      context: .
+      dockerfile: infrastructure/schemaspy/Dockerfile
+    volumes:
+      - ./schemaspy:/schemaspy
+    depends_on:
+      - mysql
+    command: "tail -f /dev/null"
+
+  # MySQLコンテナ
+  mysql:
+    profiles: [ "local" ]
+    container_name: mysql
+    hostname: mysql-${CONTAINER_NAME_SUFFIX} # ホスト名を明示的に指定する
+    build:
+      context: .
+      dockerfile: infrastructure/mysql/Dockerfile
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_TCP_PORT: ${MYSQL_PORTS}
+      TZ: ${MYSQL_TZ}
+    volumes:
+      - ./infrastructure/mysql/conf/my.cnf:/etc/my.cnf
+      - ./infrastructure/mysql/sql:/docker-entrypoint-initdb.d # 初期DBの作成等はこのディレクトリでも管理できる。
+      - mysql-data:/var/lib/mysql
+    secrets:
+      - db_secret_file
+    ports:
+      - ${CONTAINER_IP}:${MYSQL_PORTS}:3306
+
+  nginx:
+    profiles: [ "local" ]
+    build:
+      context: .
+      dockerfile: infrastructure/nginx/Dockerfile
+    container_name: nginx-schemaspy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./schemaspy:/usr/share/nginx/html
+    restart: always
+
+volumes:
+  mysql-data:
+
+secrets:
+  db_secret_file:
+    file: db_secret.txt

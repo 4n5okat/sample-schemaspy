@@ -1,12 +1,12 @@
-# コンテナテンプレート
+# SchemaSpyサンプルリポジトリ
 
 ## 概要
 
-コンテナテンプレートリポジトリ
+SchemaSpyを使用するためのサンプルリポジトリ
 
 ## 目次
 
-- [コンテナテンプレート](#コンテナテンプレート)
+- [SchemaSpyサンプルリポジトリ](#schemaspyサンプルリポジトリ)
   - [概要](#概要)
   - [目次](#目次)
   - [共通事項](#共通事項)
@@ -28,21 +28,33 @@
 
 ~~~sh
 .
-├── .vscode(VSCodeの設定)/
+├── .vscode/
 │   └── settings.json
-├── docs(ドキュメント群)/
+├── docs/
 │   ├── README.environment-building.md
 │   ├── README.git.md
 │   ├── README.make.md
 │   ├── README.scoop-package.md
 │   └── README.scoop.md
 ├── infrastructure/
-│   └── service_name(compose.ymlのサービスごとのディレクトリ)/
+│   ├── mysql/
+│   │   ├── conf/
+│   │   │   └── my.cnf
+│   │   ├── sql/
+│   │   │   └── dummy_table.sql
+│   │   └── Dockerfile
+│   ├── nginx/
+│   │   ├── conf/
+│   │   │   └── default.conf
+│   │   └── Dockerfile
+│   └── schemaspy/
+│       ├── config/
+│       │   └── schemaspy.properties
 │       └── Dockerfile
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
-├── API.rest(REST Client)
+├── API.rest
 ├── compose.yml
 ├── Makefile
 └── README.md
@@ -61,7 +73,7 @@
 make first-up-build
 
 # make first-up-buildを実行した後で再度コンテナ起動したい場合のコマンド
-make up
+make up ENV=local
 
 # コンテナログを確認するときのコマンド
 make logs-f
@@ -76,6 +88,15 @@ make down-rmi
 make down-all
 ~~~
 
+SchemaSpyを実行する。
+
+~~~sh
+make schemaspy-execution
+~~~
+
+上記コマンド実行後にschemaspyディレクトリにファイルが生成されたら[リンク](http://localhost:8080/index.html)先に遷移して確認する
+
 ## 参考リンク
 
 [Visual Studio Code (VS Code)のオススメ設定と拡張機能の紹介](https://zenn.dev/yutotnh/articles/1577b6dc5ab7d9)
+[SchemaSpy GitHubリポジトリ](https://github.com/schemaspy/schemaspy/)

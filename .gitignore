@@ -646,4 +646,8 @@ terraform.rc
 # etc
 #--------------------------------------------------
 
-#
+# schemaspy
+/schemaspy/*
+
+# db_secret.txt
+db_secret.txt
